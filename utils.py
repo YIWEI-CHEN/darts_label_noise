@@ -72,12 +72,12 @@ def _data_transforms_cifar10(args):
     :param args:
     :return:
     """
-    CIFAR_MEAN = [0.49139968, 0.48215827, 0.44653124]
-    CIFAR_STD = [0.24703233, 0.24348505, 0.26158768]
+    CIFAR_MEAN = [x / 255 for x in [125.3, 123.0, 113.9]]  # [0.49139968, 0.48215827, 0.44653124]
+    CIFAR_STD = [x / 255 for x in [63.0, 62.1, 66.7]]  # [0.24703233, 0.24348505, 0.26158768]
 
     train_transform = transforms.Compose([
-        transforms.RandomCrop(32, padding=4),
         transforms.RandomHorizontalFlip(),
+        transforms.RandomCrop(32, padding=4),
         transforms.ToTensor(),
         transforms.Normalize(CIFAR_MEAN, CIFAR_STD),
     ])
