@@ -1,19 +1,21 @@
-import  os
-import  sys
-import  time
-import  glob
-import  numpy as np
-import  torch
-import  utils
-import  logging
-import  argparse
-import  torch.nn as nn
-import  genotypes
-import  torch.utils
-import  torchvision.datasets as dset
-import  torch.backends.cudnn as cudnn
+import argparse
+import glob
+import logging
+import sys
+import time
 
-from    model import NetworkCIFAR as Network
+import numpy as np
+import os
+import torch
+import torch.backends.cudnn as cudnn
+import torch.nn as nn
+import torch.utils
+import torchvision.datasets as dset
+
+import utils
+from model import NetworkCIFAR as Network
+
+os.environ['CUDA_VISIBLE_DEVICES'] = '2'
 
 parser = argparse.ArgumentParser("cifar10")
 parser.add_argument('--data', type=str, default='../data', help='location of the data corpus')
@@ -34,7 +36,7 @@ parser.add_argument('--cutout_length', type=int, default=16, help='cutout length
 parser.add_argument('--drop_path_prob', type=float, default=0.2, help='drop path probability')
 parser.add_argument('--exp_path', type=str, default='exp/cifar10', help='experiment name')
 parser.add_argument('--seed', type=int, default=0, help='random seed')
-parser.add_argument('--arch', type=str, default='DARTS', help='which architecture to use')
+parser.add_argument('--arch', type=str, default='qq_init_darts', help='which architecture to use')
 parser.add_argument('--grad_clip', type=float, default=5, help='gradient clipping')
 args = parser.parse_args()
 
