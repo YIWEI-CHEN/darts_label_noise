@@ -5,3 +5,4 @@ exp
 exp*
 __pycache__
 .idea/
+cifar10/
