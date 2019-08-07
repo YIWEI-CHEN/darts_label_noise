@@ -2,21 +2,25 @@ import argparse
 import logging
 
 import glob
+import time
+
 import numpy as np
 import os
 import sys
 import torch
 import torch.backends.cudnn as cudnn
 import torch.nn as nn
-import torchvision.datasets as dset
 from torch import optim
 
 import utils
 from arch import Arch
 from model_search import Network
+from load_corrupted_data import CIFAR10, CIFAR100
 
 parser = argparse.ArgumentParser("cifar")
 parser.add_argument('--data', type=str, default='../data', help='location of the data corpus')
+parser.add_argument('--dataset', type=str, default='cifar10', choices=['cifar10', 'cifar100'],
+                    help='Choose between CIFAR-10, CIFAR-100.')
 parser.add_argument('--batchsz', type=int, default=64, help='batch size')
 parser.add_argument('--lr', type=float, default=0.025, help='init learning rate')
 parser.add_argument('--lr_min', type=float, default=0.001, help='min learning rate')
@@ -38,6 +42,11 @@ parser.add_argument('--train_portion', type=float, default=0.9, help='portion of
 parser.add_argument('--unrolled', action='store_true', default=False, help='use one-step unrolled validation loss')
 parser.add_argument('--arch_lr', type=float, default=3e-4, help='learning rate for arch encoding')
 parser.add_argument('--arch_wd', type=float, default=1e-3, help='weight decay for arch encoding')
+parser.add_argument('--gold_fraction', '-gf', type=float, default=1, help='What fraction of the data should be trusted?')
+parser.add_argument('--corruption_prob', '-cprob', type=float, default=0.7, help='The label corruption probability.')
+parser.add_argument('--corruption_type', '-ctype', type=str, default='unif',
+                    help='Type of corruption ("unif", "flip", hierarchical).')
+parser.add_argument('--time_limit', type=int, default=12*60*60, help='Time limit for search')
 args = parser.parse_args()
 
 
@@ -56,7 +65,7 @@ logging.getLogger().addHandler(fh)
 os.environ['CUDA_VISIBLE_DEVICES'] = str(args.gpu)
 device = torch.device('cuda:0')
 
-
+start = None
 
 def main():
     np.random.seed(args.seed)
@@ -96,21 +105,39 @@ def main():
     logging.info('GPU device = %d' % args.gpu)
     logging.info("args = %s", args)
 
-
-    criterion = nn.CrossEntropyLoss().to(device)
-    model = Network(args.init_ch, 10, args.layers, criterion).to(device)
-
-    logging.info("Total param size = %f MB", utils.count_parameters_in_MB(model))
-
-    # this is the optimizer to optimize
-    optimizer = optim.SGD(model.parameters(), args.lr, momentum=args.momentum, weight_decay=args.wd)
-
     train_transform, valid_transform = utils._data_transforms_cifar10(args)
-    train_data = dset.CIFAR10(root=args.data, train=True, download=True, transform=train_transform)
 
-    num_train = len(train_data) # 50000
+    # Load dataset
+    if args.dataset == 'cifar10':
+        if args.gold_fraction == 0:
+            train_data = CIFAR10(
+                root=args.data, train=True, gold=False, gold_fraction=args.gold_fraction,
+                corruption_prob=args.corruption_prob, corruption_type=args.corruption_type,
+                transform=train_transform, download=True, seed=args.seed)
+        else:
+            train_data = CIFAR10(
+                root=args.data, train=True, gold=True, gold_fraction=args.gold_fraction,
+                corruption_prob=args.corruption_prob, corruption_type=args.corruption_type,
+                transform=train_transform, download=True, seed=args.seed)
+        num_classes = 10
+
+    elif args.dataset == 'cifar100':
+        if args.gold_fraction == 0:
+            train_data = CIFAR100(
+                root=args.data, train=True, gold=False, gold_fraction=args.gold_fraction,
+                corruption_prob=args.corruption_prob, corruption_type=args.corruption_type,
+                transform=train_transform, download=True, seed=args.seed)
+        else:
+            train_data = CIFAR100(
+                root=args.data, train=True, gold=True, gold_fraction=args.gold_fraction,
+                corruption_prob=args.corruption_prob, corruption_type=args.corruption_type,
+                transform=train_transform, download=True, seed=args.seed)
+        num_classes = 100
+
+    # Split data to train and validation
+    num_train = len(train_data)  # 50000
     indices = list(range(num_train))
-    split = int(np.floor(args.train_portion * num_train)) # 45000
+    split = int(np.floor(args.train_portion * num_train))  # 45000
 
     train_queue = torch.utils.data.DataLoader(
         train_data, batch_size=args.batchsz,
@@ -122,13 +149,25 @@ def main():
         sampler=torch.utils.data.sampler.SubsetRandomSampler(indices[split:]),
         pin_memory=True, num_workers=2)
 
+    criterion = nn.CrossEntropyLoss().to(device)
+    model = Network(args.init_ch, num_classes, args.layers, criterion).to(device)
+
+    logging.info("Total param size = %f MB", utils.count_parameters_in_MB(model))
+
+    # this is the optimizer to optimize
+    optimizer = optim.SGD(model.parameters(), args.lr, momentum=args.momentum, weight_decay=args.wd, nesterov=True)
+
     scheduler = optim.lr_scheduler.CosineAnnealingLR(
                     optimizer, float(args.epochs), eta_min=args.lr_min)
 
     arch = Arch(model, args)
 
+    global start
+    start = time.time()
     for epoch in range(args.epochs):
-
+        current_time = time.time()
+        if current_time - start >= args.time_limit:
+            break
         scheduler.step()
         lr = scheduler.get_lr()[0]
         logging.info('\nEpoch: %d lr: %e', epoch, lr)
@@ -147,7 +186,7 @@ def main():
         valid_acc, valid_obj = infer(valid_queue, model, criterion)
         logging.info('valid acc: %f', valid_acc)
 
-        utils.save(model, os.path.join(args.exp_path, 'search.pt'))
+        utils.save(model, os.path.join(args.exp_path, 'search_epoch1.pt'))
 
 
 def train(train_queue, valid_queue, model, arch, criterion, optimizer, lr):
@@ -169,7 +208,9 @@ def train(train_queue, valid_queue, model, arch, criterion, optimizer, lr):
     valid_iter = iter(valid_queue)
 
     for step, (x, target) in enumerate(train_queue):
-
+        current_time = time.time()
+        if current_time - start >= args.time_limit:
+            break
         batchsz = x.size(0)
         model.train()
 
@@ -221,6 +262,9 @@ def infer(valid_queue, model, criterion):
 
     with torch.no_grad():
         for step, (x, target) in enumerate(valid_queue):
+            current_time = time.time()
+            if current_time - start >= args.time_limit:
+                break
 
             x, target = x.to(device), target.cuda(non_blocking=True)
             batchsz = x.size(0)
