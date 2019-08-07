@@ -34,11 +34,12 @@ parser.add_argument('--drop_path_prob', type=float, default=0.3, help='drop path
 parser.add_argument('--exp_path', type=str, default='search', help='experiment name')
 parser.add_argument('--seed', type=int, default=2, help='random seed')
 parser.add_argument('--grad_clip', type=float, default=5, help='gradient clipping range')
-parser.add_argument('--train_portion', type=float, default=0.5, help='portion of training/val splitting')
+parser.add_argument('--train_portion', type=float, default=0.9, help='portion of training/val splitting')
 parser.add_argument('--unrolled', action='store_true', default=False, help='use one-step unrolled validation loss')
 parser.add_argument('--arch_lr', type=float, default=3e-4, help='learning rate for arch encoding')
 parser.add_argument('--arch_wd', type=float, default=1e-3, help='weight decay for arch encoding')
 args = parser.parse_args()
+
 
 args.exp_path += str(args.gpu)
 utils.create_exp_dir(args.exp_path, scripts_to_save=glob.glob('*.py'))
@@ -109,7 +110,7 @@ def main():
 
     num_train = len(train_data) # 50000
     indices = list(range(num_train))
-    split = int(np.floor(args.train_portion * num_train)) # 25000
+    split = int(np.floor(args.train_portion * num_train)) # 45000
 
     train_queue = torch.utils.data.DataLoader(
         train_data, batch_size=args.batchsz,
@@ -174,7 +175,11 @@ def train(train_queue, valid_queue, model, arch, criterion, optimizer, lr):
 
         # [b, 3, 32, 32], [40]
         x, target = x.to(device), target.cuda(non_blocking=True)
-        x_search, target_search = next(valid_iter) # [b, 3, 32, 32], [b]
+        try:
+            x_search, target_search = next(valid_iter) # [b, 3, 32, 32], [b]
+        except StopIteration:
+            valid_iter = iter(valid_queue)
+            x_search, target_search = next(valid_iter)
         x_search, target_search = x_search.to(device), target_search.cuda(non_blocking=True)
 
         # 1. update alpha
