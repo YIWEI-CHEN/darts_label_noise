@@ -14,8 +14,8 @@ import torchvision.datasets as dset
 
 import utils
 from model import NetworkCIFAR as Network
-
-os.environ['CUDA_VISIBLE_DEVICES'] = '2'
+from load_corrupted_data import CIFAR10, CIFAR100
+import genotypes
 
 parser = argparse.ArgumentParser("cifar10")
 parser.add_argument('--data', type=str, default='../data', help='location of the data corpus')
@@ -38,6 +38,12 @@ parser.add_argument('--exp_path', type=str, default='exp/cifar10', help='experim
 parser.add_argument('--seed', type=int, default=0, help='random seed')
 parser.add_argument('--arch', type=str, default='qq_init_darts', help='which architecture to use')
 parser.add_argument('--grad_clip', type=float, default=5, help='gradient clipping')
+parser.add_argument('--dataset', type=str, default='cifar10', choices=['cifar10', 'cifar100'],
+                    help='Choose between CIFAR-10, CIFAR-100.')
+parser.add_argument('--gold_fraction', '-gf', type=float, default=1, help='What fraction of the data should be trusted?')
+parser.add_argument('--corruption_prob', '-cprob', type=float, default=0.7, help='The label corruption probability.')
+parser.add_argument('--corruption_type', '-ctype', type=str, default='unif',
+                    help='Type of corruption ("unif", "flip", hierarchical).')
 args = parser.parse_args()
 
 args.save = args.exp_path + '-' + time.strftime("%Y%m%d-%H%M%S")
@@ -50,21 +56,53 @@ fh = logging.FileHandler(os.path.join(args.save, 'log.txt'))
 fh.setFormatter(logging.Formatter(log_format))
 logging.getLogger().addHandler(fh)
 
-
+os.environ['CUDA_VISIBLE_DEVICES'] = str(args.gpu)
+device = torch.device('cuda:0')
 
 def main():
 
 
     np.random.seed(args.seed)
-    torch.cuda.set_device(args.gpu)
+    torch.cuda.set_device(device)
     cudnn.benchmark = True
     cudnn.enabled = True
     torch.manual_seed(args.seed)
     logging.info('gpu device = %d' % args.gpu)
     logging.info("args = %s", args)
 
+    train_transform, valid_transform = utils._data_transforms_cifar10(args)
+
+    # Load dataset
+    if args.dataset == 'cifar10':
+        if args.gold_fraction == 0:
+            train_data = CIFAR10(
+                root=args.data, train=True, gold=False, gold_fraction=args.gold_fraction,
+                corruption_prob=args.corruption_prob, corruption_type=args.corruption_type,
+                transform=train_transform, download=True, seed=args.seed)
+        else:
+            train_data = CIFAR10(
+                root=args.data, train=True, gold=True, gold_fraction=args.gold_fraction,
+                corruption_prob=args.corruption_prob, corruption_type=args.corruption_type,
+                transform=train_transform, download=True, seed=args.seed)
+        valid_data = dset.CIFAR10(root=args.data, train=False, download=True, transform=valid_transform)
+        num_classes = 10
+
+    elif args.dataset == 'cifar100':
+        if args.gold_fraction == 0:
+            train_data = CIFAR100(
+                root=args.data, train=True, gold=False, gold_fraction=args.gold_fraction,
+                corruption_prob=args.corruption_prob, corruption_type=args.corruption_type,
+                transform=train_transform, download=True, seed=args.seed)
+        else:
+            train_data = CIFAR100(
+                root=args.data, train=True, gold=True, gold_fraction=args.gold_fraction,
+                corruption_prob=args.corruption_prob, corruption_type=args.corruption_type,
+                transform=train_transform, download=True, seed=args.seed)
+        valid_data = dset.CIFAR100(root=args.data, train=False, download=True, transform=valid_transform)
+        num_classes = 100
+
     genotype = eval("genotypes.%s" % args.arch)
-    model = Network(args.init_ch, 10, args.layers, args.auxiliary, genotype).cuda()
+    model = Network(args.init_ch, num_classes, args.layers, args.auxiliary, genotype).cuda()
 
     logging.info("param size = %fMB", utils.count_parameters_in_MB(model))
 
@@ -73,12 +111,9 @@ def main():
         model.parameters(),
         args.lr,
         momentum=args.momentum,
-        weight_decay=args.wd
+        weight_decay=args.wd,
+        nesterov=True
     )
-
-    train_transform, valid_transform = utils._data_transforms_cifar10(args)
-    train_data = dset.CIFAR10(root=args.data, train=True, download=True, transform=train_transform)
-    valid_data = dset.CIFAR10(root=args.data, train=False, download=True, transform=valid_transform)
 
     train_queue = torch.utils.data.DataLoader(
         train_data, batch_size=args.batchsz, shuffle=True, pin_memory=True, num_workers=2)
