@@ -44,9 +44,11 @@ parser.add_argument('--gold_fraction', '-gf', type=float, default=1, help='What 
 parser.add_argument('--corruption_prob', '-cprob', type=float, default=0.7, help='The label corruption probability.')
 parser.add_argument('--corruption_type', '-ctype', type=str, default='unif',
                     help='Type of corruption ("unif", "flip", hierarchical).')
+parser.add_argument('--loss_func', type=str, default='cce', choices=['cce', 'rll'],
+                    help='Choose between Categorical Cross Entropy (CCE), Robust Log Loss (RLL).')
 args = parser.parse_args()
 
-args.save = args.exp_path + '-' + time.strftime("%Y%m%d-%H%M%S")
+args.save = args.exp_path + '-' + time.strftime("%m%d")
 utils.create_exp_dir(args.save, scripts_to_save=glob.glob('*.py'))
 
 log_format = '%(asctime)s %(message)s'
@@ -106,7 +108,12 @@ def main():
 
     logging.info("param size = %fMB", utils.count_parameters_in_MB(model))
 
-    criterion = nn.CrossEntropyLoss().cuda()
+    if args.loss_func == 'cce':
+        criterion = nn.CrossEntropyLoss().to(device)
+    elif args.loss_func == 'rll':
+        criterion = utils.RobustLogLoss().to(device)
+    else:
+        assert False, "Invalid loss function '{}' given. Must be in {'cce', 'rll'}".format(args.loss_func)
     optimizer = torch.optim.SGD(
         model.parameters(),
         args.lr,
