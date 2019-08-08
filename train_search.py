@@ -47,6 +47,8 @@ parser.add_argument('--corruption_prob', '-cprob', type=float, default=0.7, help
 parser.add_argument('--corruption_type', '-ctype', type=str, default='unif',
                     help='Type of corruption ("unif", "flip", hierarchical).')
 parser.add_argument('--time_limit', type=int, default=12*60*60, help='Time limit for search')
+parser.add_argument('--loss_func', type=str, default='cce', choices=['cce', 'rll'],
+                    help='Choose between Categorical Cross Entropy (CCE), Robust Log Loss (RLL).')
 args = parser.parse_args()
 
 
@@ -149,7 +151,12 @@ def main():
         sampler=torch.utils.data.sampler.SubsetRandomSampler(indices[split:]),
         pin_memory=True, num_workers=2)
 
-    criterion = utils.RobustLogLoss().to(device)
+    if args.loss_func == 'cce':
+        criterion = nn.CrossEntropyLoss().to(device)
+    elif args.loss_func == 'rll':
+        criterion = utils.RobustLogLoss().to(device)
+    else:
+        assert False, "Invalid loss function '{}' given. Must be in {'cce', 'rll'}".format(args.loss_func)
     model = Network(args.init_ch, num_classes, args.layers, criterion).to(device)
 
     logging.info("Total param size = %f MB", utils.count_parameters_in_MB(model))
