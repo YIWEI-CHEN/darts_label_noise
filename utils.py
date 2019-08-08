@@ -1,8 +1,8 @@
-import  os
-import  numpy as np
-import  torch
-import  shutil
-import  torchvision.transforms as transforms
+import numpy as np
+import os
+import shutil
+import torch
+import torchvision.transforms as transforms
 
 
 class AverageMeter:
@@ -138,3 +138,20 @@ def create_exp_dir(path, scripts_to_save=None):
         for script in scripts_to_save:
             dst_file = os.path.join(path, 'scripts', os.path.basename(script))
             shutil.copyfile(script, dst_file)
+
+
+class RobustLogLoss(torch.nn.Module):
+    def __init__(self, alpha=0.1):
+        super(RobustLogLoss, self).__init__()
+        self.alpha = alpha
+
+    def forward(self, input, target):
+        target_one_hot = torch.zeros(input.size())
+        target_one_hot.zero_()
+        target_one_hot.scatter_(1, target.unsqueeze(-1), 1)
+        target_one_hot = target_one_hot.float()
+
+        _input = torch.log(self.alpha + torch.nn.functional.softmax(input))
+        loss = torch.log((self.alpha + 1) / self.alpha) - \
+               target_one_hot * _input + (1 - target_one_hot) * _input / (target_one_hot.shape[1] - 1)
+        return torch.mean(torch.sum(loss, dim=1))

@@ -149,7 +149,7 @@ def main():
         sampler=torch.utils.data.sampler.SubsetRandomSampler(indices[split:]),
         pin_memory=True, num_workers=2)
 
-    criterion = nn.CrossEntropyLoss().to(device)
+    criterion = utils.RobustLogLoss().to(device)
     model = Network(args.init_ch, num_classes, args.layers, criterion).to(device)
 
     logging.info("Total param size = %f MB", utils.count_parameters_in_MB(model))
