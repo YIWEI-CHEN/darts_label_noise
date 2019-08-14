@@ -27,7 +27,7 @@ parser.add_argument('--lr_min', type=float, default=0.001, help='min learning ra
 parser.add_argument('--momentum', type=float, default=0.9, help='momentum')
 parser.add_argument('--wd', type=float, default=3e-4, help='weight decay')
 parser.add_argument('--report_freq', type=float, default=50, help='report frequency')
-parser.add_argument('--gpu', type=int, default=0, help='gpu device id')
+parser.add_argument('--gpu', type=str, default='0', help='gpu device id')
 parser.add_argument('--epochs', type=int, default=50, help='num of training epochs')
 parser.add_argument('--init_ch', type=int, default=16, help='num of init channels')
 parser.add_argument('--layers', type=int, default=8, help='total number of layers')
@@ -49,10 +49,11 @@ parser.add_argument('--corruption_type', '-ctype', type=str, default='unif',
 parser.add_argument('--time_limit', type=int, default=12*60*60, help='Time limit for search')
 parser.add_argument('--loss_func', type=str, default='cce', choices=['cce', 'rll'],
                     help='Choose between Categorical Cross Entropy (CCE), Robust Log Loss (RLL).')
+parser.add_argument('--clean_valid', action='store_true', default=False, help='use clean validation')
 args = parser.parse_args()
 
 
-args.exp_path += str(args.gpu)
+args.exp_path += str(args.gpu.replace(',', '_'))
 utils.create_exp_dir(args.exp_path, scripts_to_save=glob.glob('*.py'))
 
 log_format = '%(asctime)s %(message)s'
@@ -65,9 +66,23 @@ logging.getLogger().addHandler(fh)
 
 
 os.environ['CUDA_VISIBLE_DEVICES'] = str(args.gpu)
-device = torch.device('cuda:0')
-
+# device = torch.device('cuda:0')
+device_ids = list(map(int, args.gpu.split(',')))
 start = None
+# batchsz = args.batchsz * len(device_ids)
+batchsz = args.batchsz
+
+class MyDataParallel(nn.DataParallel):
+    def __init__(self, module):
+        super(MyDataParallel, self).__init__(module)
+        # self._module = module
+
+    def __getattr__(self, name):
+        try:
+            return super().__getattr__(name)
+        except AttributeError:
+            return getattr(self.module, name)
+
 
 def main():
     np.random.seed(args.seed)
@@ -76,13 +91,11 @@ def main():
     torch.manual_seed(args.seed)
 
     # ================================================
-    total, used = os.popen(
-        'nvidia-smi --query-gpu=memory.total,memory.used --format=csv,nounits,noheader'
-            ).read().split('\n')[args.gpu].split(',')
-    total = int(total)
-    used = int(used)
-
-    print('Total GPU mem:', total, 'used:', used)
+    for id in device_ids:
+        total, used = os.popen(
+            'nvidia-smi --query-gpu=memory.total,memory.used --format=csv,nounits,noheader'
+                ).read().split('\n')[id].split(',')
+        print('GPU ({}) mem:'.format(id), total, 'used:', used)
 
 
     # try:
@@ -104,7 +117,7 @@ def main():
     args.unrolled = True
 
 
-    logging.info('GPU device = %d' % args.gpu)
+    logging.info('GPU device = %s' % args.gpu)
     logging.info("args = %s", args)
 
     train_transform, valid_transform = utils._data_transforms_cifar10(args)
@@ -116,6 +129,11 @@ def main():
                 root=args.data, train=True, gold=False, gold_fraction=args.gold_fraction,
                 corruption_prob=args.corruption_prob, corruption_type=args.corruption_type,
                 transform=train_transform, download=True, seed=args.seed)
+            if args.clean_valid:
+                gold_train_data = CIFAR10(
+                    root=args.data, train=True, gold=True, gold_fraction=1.0,
+                    corruption_prob=args.corruption_prob, corruption_type=args.corruption_type,
+                    transform=train_transform, download=True, seed=args.seed)
         else:
             train_data = CIFAR10(
                 root=args.data, train=True, gold=True, gold_fraction=args.gold_fraction,
@@ -129,6 +147,11 @@ def main():
                 root=args.data, train=True, gold=False, gold_fraction=args.gold_fraction,
                 corruption_prob=args.corruption_prob, corruption_type=args.corruption_type,
                 transform=train_transform, download=True, seed=args.seed)
+            if args.clean_valid:
+                gold_train_data = CIFAR100(
+                    root=args.data, train=True, gold=True, gold_fraction=1.0,
+                    corruption_prob=args.corruption_prob, corruption_type=args.corruption_type,
+                    transform=train_transform, download=True, seed=args.seed)
         else:
             train_data = CIFAR100(
                 root=args.data, train=True, gold=True, gold_fraction=args.gold_fraction,
@@ -142,22 +165,30 @@ def main():
     split = int(np.floor(args.train_portion * num_train))  # 45000
 
     train_queue = torch.utils.data.DataLoader(
-        train_data, batch_size=args.batchsz,
+        train_data, batch_size=batchsz,
         sampler=torch.utils.data.sampler.SubsetRandomSampler(indices[:split]),
         pin_memory=True, num_workers=2)
 
-    valid_queue = torch.utils.data.DataLoader(
-        train_data, batch_size=args.batchsz,
-        sampler=torch.utils.data.sampler.SubsetRandomSampler(indices[split:]),
-        pin_memory=True, num_workers=2)
+    if args.clean_valid:
+        valid_queue = torch.utils.data.DataLoader(
+            gold_train_data, batch_size=batchsz,
+            sampler=torch.utils.data.sampler.SubsetRandomSampler(indices[split:]),
+            pin_memory=True, num_workers=2)
+    else:
+        valid_queue = torch.utils.data.DataLoader(
+            train_data, batch_size=batchsz,
+            sampler=torch.utils.data.sampler.SubsetRandomSampler(indices[split:]),
+            pin_memory=True, num_workers=2)
 
     if args.loss_func == 'cce':
-        criterion = nn.CrossEntropyLoss().to(device)
+        criterion = nn.CrossEntropyLoss().cuda()
     elif args.loss_func == 'rll':
-        criterion = utils.RobustLogLoss().to(device)
+        criterion = utils.RobustLogLoss().cuda()
     else:
         assert False, "Invalid loss function '{}' given. Must be in {'cce', 'rll'}".format(args.loss_func)
-    model = Network(args.init_ch, num_classes, args.layers, criterion).to(device)
+    model = Network(args.init_ch, num_classes, args.layers, criterion)
+    model = MyDataParallel(model).cuda()
+    # model = para_model.module.cuda()
 
     logging.info("Total param size = %f MB", utils.count_parameters_in_MB(model))
 
@@ -222,13 +253,13 @@ def train(train_queue, valid_queue, model, arch, criterion, optimizer, lr):
         model.train()
 
         # [b, 3, 32, 32], [40]
-        x, target = x.to(device), target.cuda(non_blocking=True)
+        x, target = x.cuda(), target.cuda(non_blocking=True)
         try:
             x_search, target_search = next(valid_iter) # [b, 3, 32, 32], [b]
         except StopIteration:
             valid_iter = iter(valid_queue)
             x_search, target_search = next(valid_iter)
-        x_search, target_search = x_search.to(device), target_search.cuda(non_blocking=True)
+        x_search, target_search = x_search.cuda(), target_search.cuda(non_blocking=True)
 
         # 1. update alpha
         arch.step(x, target, x_search, target_search, lr, optimizer, unrolled=args.unrolled)
@@ -273,7 +304,7 @@ def infer(valid_queue, model, criterion):
             if current_time - start >= args.time_limit:
                 break
 
-            x, target = x.to(device), target.cuda(non_blocking=True)
+            x, target = x.cuda(), target.cuda(non_blocking=True)
             batchsz = x.size(0)
 
             logits = model(x)

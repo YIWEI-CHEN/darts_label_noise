@@ -145,10 +145,12 @@ class Arch:
         :return:
         """
         model_new = self.model.new()
-        model_dict = self.model.state_dict()
+        module = self.model.module if isinstance(self.model, torch.nn.DataParallel) else self.model
+
+        model_dict = module.state_dict()
 
         params, offset = {}, 0
-        for k, v in self.model.named_parameters():
+        for k, v in module.named_parameters():
             v_length = v.numel()
             # restore theta[] value to original shape
             params[k] = theta[offset: offset + v_length].view(v.size())
