@@ -152,6 +152,5 @@ class RobustLogLoss(torch.nn.Module):
         target_one_hot = target_one_hot.float()
 
         _input = torch.log(self.alpha + torch.nn.functional.softmax(input))
-        loss = np.log((self.alpha + 1) / self.alpha) - \
-               target_one_hot * _input + (1 - target_one_hot) * _input / (target_one_hot.shape[1] - 1)
-        return torch.mean(torch.sum(loss, dim=1))
+        loss = -target_one_hot * _input + (1 - target_one_hot) * _input / (target_one_hot.shape[1] - 1)
+        return torch.mean(torch.sum(loss, dim=1) + np.log((self.alpha + 1) / self.alpha))
