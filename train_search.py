@@ -187,7 +187,10 @@ def main():
     else:
         assert False, "Invalid loss function '{}' given. Must be in {'cce', 'rll'}".format(args.loss_func)
     model = Network(args.init_ch, num_classes, args.layers, criterion)
-    model = MyDataParallel(model).cuda()
+    if len(device_ids) > 1:
+        model = MyDataParallel(model).cuda()
+    else:
+        model.cuda()
     # model = para_model.module.cuda()
 
     logging.info("Total param size = %f MB", utils.count_parameters_in_MB(model))
