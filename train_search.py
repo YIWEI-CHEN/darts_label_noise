@@ -18,7 +18,7 @@ from model_search import Network
 from load_corrupted_data import CIFAR10, CIFAR100
 
 parser = argparse.ArgumentParser("cifar")
-parser.add_argument('--data', type=str, default='../data', help='location of the data corpus')
+parser.add_argument('--data', type=str, default='.', help='location of the data corpus')
 parser.add_argument('--dataset', type=str, default='cifar10', choices=['cifar10', 'cifar100'],
                     help='Choose between CIFAR-10, CIFAR-100.')
 parser.add_argument('--batchsz', type=int, default=64, help='batch size')
@@ -36,18 +36,18 @@ parser.add_argument('--cutout', action='store_true', default=False, help='use cu
 parser.add_argument('--cutout_len', type=int, default=16, help='cutout length')
 parser.add_argument('--drop_path_prob', type=float, default=0.3, help='drop path probability')
 parser.add_argument('--exp_path', type=str, default='search', help='experiment name')
-parser.add_argument('--seed', type=int, default=2, help='random seed')
+parser.add_argument('--seed', type=int, default=1, help='random seed')
 parser.add_argument('--grad_clip', type=float, default=5, help='gradient clipping range')
 parser.add_argument('--train_portion', type=float, default=0.9, help='portion of training/val splitting')
 parser.add_argument('--unrolled', action='store_true', default=False, help='use one-step unrolled validation loss')
 parser.add_argument('--arch_lr', type=float, default=3e-4, help='learning rate for arch encoding')
 parser.add_argument('--arch_wd', type=float, default=1e-3, help='weight decay for arch encoding')
-parser.add_argument('--gold_fraction', '-gf', type=float, default=1, help='What fraction of the data should be trusted?')
-parser.add_argument('--corruption_prob', '-cprob', type=float, default=0.7, help='The label corruption probability.')
+parser.add_argument('--gold_fraction', '-gf', type=float, default=0, help='What fraction of the data should be trusted?')
+parser.add_argument('--corruption_prob', '-cprob', type=float, default=0.6, help='The label corruption probability.')
 parser.add_argument('--corruption_type', '-ctype', type=str, default='unif',
                     help='Type of corruption ("unif", "flip", hierarchical).')
 parser.add_argument('--time_limit', type=int, default=12*60*60, help='Time limit for search')
-parser.add_argument('--loss_func', type=str, default='cce', choices=['cce', 'rll'],
+parser.add_argument('--loss_func', type=str, default='rll', choices=['cce', 'rll'],
                     help='Choose between Categorical Cross Entropy (CCE), Robust Log Loss (RLL).')
 parser.add_argument('--clean_valid', action='store_true', default=False, help='use clean validation')
 args = parser.parse_args()
