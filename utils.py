@@ -38,7 +38,7 @@ def accuracy(output, target, topk=(1,)):
 
     res = []
     for k in topk:
-        correct_k = correct[:k].view(-1).float().sum(0)
+        correct_k = correct[:k].contiguous().view(-1).float().sum(0)
         res.append(correct_k.mul_(100.0 / batch_size))
 
     return res
@@ -129,7 +129,7 @@ def drop_path(x, drop_prob):
 
 def create_exp_dir(path, scripts_to_save=None):
     if not os.path.exists(path):
-        os.mkdir(path)
+        os.makedirs(path, exist_ok=True)
     print('Experiment dir : {}'.format(path))
 
     if scripts_to_save is not None:
