@@ -24,7 +24,7 @@ parser.add_argument('--lr', type=float, default=0.025, help='init learning rate'
 parser.add_argument('--momentum', type=float, default=0.9, help='momentum')
 parser.add_argument('--wd', type=float, default=3e-4, help='weight decay')
 parser.add_argument('--report_freq', type=float, default=50, help='report frequency')
-parser.add_argument('--gpu', type=int, default=0, help='gpu device id')
+parser.add_argument('--gpu', type=int, default=2, help='gpu device id')
 parser.add_argument('--epochs', type=int, default=600, help='num of training epochs')
 parser.add_argument('--init_ch', type=int, default=36, help='num of init channels')
 parser.add_argument('--layers', type=int, default=20, help='total number of layers')
@@ -105,7 +105,7 @@ def main():
         num_classes = 100
 
     if "resnet" in args.arch:
-        model = torch.hub.load('pytorch/vision:v0.10.0', 'resnet18', pretrained=False)
+        model = torch.hub.load('pytorch/vision:v0.10.0', 'resnet18', pretrained=False).cuda()
     else:
         genotype = eval("genotypes.%s" % args.arch)
         model = Network(args.init_ch, num_classes, args.layers, args.auxiliary, genotype).cuda()
@@ -161,11 +161,15 @@ def train(train_queue, model, criterion, optimizer):
         target = target.cuda(non_blocking=True)
 
         optimizer.zero_grad()
-        logits, logits_aux = model(x)
-        loss = criterion(logits, target)
-        if args.auxiliary:
-            loss_aux = criterion(logits_aux, target)
-            loss += args.auxiliary_weight * loss_aux
+        if "resnet" in args.arch:
+            logits, logits_aux = model(x), 0
+            loss = criterion(logits, target)
+        else:
+            logits, logits_aux = model(x)
+            loss = criterion(logits, target)
+            if args.auxiliary:
+                loss_aux = criterion(logits_aux, target)
+                loss += args.auxiliary_weight * loss_aux
         loss.backward()
         nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
         optimizer.step()
@@ -194,7 +198,10 @@ def infer(valid_queue, model, criterion):
         target = target.cuda(non_blocking=True)
 
         with torch.no_grad():
-            logits, _ = model(x)
+            if "resnet" in args.arch:
+                logits = model(x)
+            else:
+                logits, _ = model(x)
             loss = criterion(logits, target)
 
             prec1, prec5 = utils.accuracy(logits, target, topk=(1, 5))
