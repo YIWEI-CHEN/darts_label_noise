@@ -61,14 +61,15 @@ logging.getLogger().addHandler(fh)
 os.environ['CUDA_VISIBLE_DEVICES'] = str(args.gpu)
 device = torch.device('cuda:0')
 
-def main():
 
+def main():
+    torch.cuda.set_device(device)
 
     np.random.seed(args.seed)
-    torch.cuda.set_device(device)
     cudnn.benchmark = True
     cudnn.enabled = True
     torch.manual_seed(args.seed)
+
     logging.info('gpu device = %d' % args.gpu)
     logging.info("args = %s", args)
 
@@ -140,10 +141,6 @@ def main():
 
         train_acc, train_obj = train(train_queue, model, criterion, optimizer)
         logging.info('train_acc: %f', train_acc)
-
-
-
-
 
         utils.save(model, os.path.join(args.save, 'trained.pt'))
         print('saved to: trained.pt')

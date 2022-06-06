@@ -1,15 +1,41 @@
 # On Robustness of Neural Architecture Search Under Label Noise
 This repository is the official implementation of [On Robustness of Neural Architecture Search Under Label Noise](https://doi.org/10.3389/fdata.2020.00002).
 
+
+
 ## Requirements
+We use python 3.8.10 and NVIDIA GTX 1080 Ti.
+```setup
+pip install -r requiresments.txt
+```
 
 
 ## Dataset
+We verify our method on CIFAR-10 and CIFAR-100.
+These datasets are downloaded automatically if they are unavailable under "cifar10/cifar100" directory. 
 
-## Neural Architecture Search Under Label Noise
+
+## Search
+We searhc neural architectures under two types of label noise: (1) symmetric noise (2) hierarchical noise.
+The noise levels are 0.2, 0.4, 0.6.
+The loss function could be robust log loss (RLL) or categorical cross entropy (CCE).
+The seeds are "1", "2019", "1989".
+The log files would be saved under "logs/DATE_SEED_DATASET_LOSS_NOISE_GPU".
+
+```search
+# RLL (script <seed> <noise_level> <gpu>) 
+sh scripts/symmetric_noise/rll_search.sh 1 0.6 0
+
+# CCE (script <seed> <noise_level> <gpu>)
+sh scripts/symmetric_noise/cce_search.sh 1 0.6 0
+```
 
 
 ## Training
+```train
+# RLL
+sh scripts/symmetric_noise/retrain.sh 1 1.0 0 rll darts_rll_seed_1_symmetric_1
+```
 
 ## Evaluation
 

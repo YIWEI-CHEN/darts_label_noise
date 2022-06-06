@@ -111,3 +111,6 @@ no_noise_epoch5 = Genotype(normal=[('max_pool_3x3', 0), ('sep_conv_3x3', 1), ('s
 DARTS = qq_init_darts
 
 # DARTS_V1
+
+# RLL Symmetric 1.0
+darts_rll_seed_1_symmetric_1 = Genotype(normal=[('dil_conv_3x3', 1), ('sep_conv_3x3', 0), ('dil_conv_5x5', 1), ('sep_conv_5x5', 0), ('dil_conv_3x3', 1), ('sep_conv_3x3', 2), ('dil_conv_3x3', 0), ('sep_conv_5x5', 4)], normal_concat=range(2, 6), reduce=[('sep_conv_5x5', 1), ('sep_conv_5x5', 0), ('dil_conv_5x5', 0), ('dil_conv_5x5', 1), ('sep_conv_5x5', 3), ('sep_conv_3x3', 0), ('dil_conv_3x3', 4), ('dil_conv_5x5', 3)], reduce_concat=range(2, 6))
