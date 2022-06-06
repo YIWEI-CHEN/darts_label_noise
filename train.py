@@ -18,7 +18,7 @@ from load_corrupted_data import CIFAR10, CIFAR100
 import genotypes
 
 parser = argparse.ArgumentParser("cifar10")
-parser.add_argument('--data', type=str, default='../data', help='location of the data corpus')
+parser.add_argument('--data', type=str, default='cifar10', help='location of the data corpus')
 parser.add_argument('--batchsz', type=int, default=96, help='batch size')
 parser.add_argument('--lr', type=float, default=0.025, help='init learning rate')
 parser.add_argument('--momentum', type=float, default=0.9, help='momentum')
@@ -29,22 +29,22 @@ parser.add_argument('--epochs', type=int, default=600, help='num of training epo
 parser.add_argument('--init_ch', type=int, default=36, help='num of init channels')
 parser.add_argument('--layers', type=int, default=20, help='total number of layers')
 parser.add_argument('--model_path', type=str, default='saved_models', help='path to save the model')
-parser.add_argument('--auxiliary', action='store_true', default=False, help='use auxiliary tower')
+parser.add_argument('--auxiliary', action='store_false', default=True, help='use auxiliary tower')
 parser.add_argument('--auxiliary_weight', type=float, default=0.4, help='weight for auxiliary loss')
-parser.add_argument('--cutout', action='store_true', default=False, help='use cutout')
+parser.add_argument('--cutout', action='store_false', default=True, help='use cutout')
 parser.add_argument('--cutout_length', type=int, default=16, help='cutout length')
 parser.add_argument('--drop_path_prob', type=float, default=0.2, help='drop path probability')
-parser.add_argument('--exp_path', type=str, default='exp/cifar10', help='experiment name')
-parser.add_argument('--seed', type=int, default=0, help='random seed')
-parser.add_argument('--arch', type=str, default='qq_init_darts', help='which architecture to use')
+parser.add_argument('--exp_path', type=str, default='logs/cifar10', help='experiment name')
+parser.add_argument('--seed', type=int, default=1, help='random seed')
+parser.add_argument('--arch', type=str, default='resnet18', help='which architecture to use')
 parser.add_argument('--grad_clip', type=float, default=5, help='gradient clipping')
 parser.add_argument('--dataset', type=str, default='cifar10', choices=['cifar10', 'cifar100'],
                     help='Choose between CIFAR-10, CIFAR-100.')
-parser.add_argument('--gold_fraction', '-gf', type=float, default=1, help='What fraction of the data should be trusted?')
-parser.add_argument('--corruption_prob', '-cprob', type=float, default=0.7, help='The label corruption probability.')
+parser.add_argument('--gold_fraction', '-gf', type=float, default=0, help='What fraction of the data should be trusted?')
+parser.add_argument('--corruption_prob', '-cprob', type=float, default=1.0, help='The label corruption probability.')
 parser.add_argument('--corruption_type', '-ctype', type=str, default='unif',
                     help='Type of corruption ("unif", "flip", hierarchical).')
-parser.add_argument('--loss_func', type=str, default='cce', choices=['cce', 'rll'],
+parser.add_argument('--loss_func', type=str, default='rll', choices=['cce', 'rll'],
                     help='Choose between Categorical Cross Entropy (CCE), Robust Log Loss (RLL).')
 args = parser.parse_args()
 
@@ -104,8 +104,11 @@ def main():
         valid_data = dset.CIFAR100(root=args.data, train=False, download=True, transform=valid_transform)
         num_classes = 100
 
-    genotype = eval("genotypes.%s" % args.arch)
-    model = Network(args.init_ch, num_classes, args.layers, args.auxiliary, genotype).cuda()
+    if "resnet" in args.arch:
+        model = torch.hub.load('pytorch/vision:v0.10.0', 'resnet18', pretrained=False)
+    else:
+        genotype = eval("genotypes.%s" % args.arch)
+        model = Network(args.init_ch, num_classes, args.layers, args.auxiliary, genotype).cuda()
 
     logging.info("param size = %fMB", utils.count_parameters_in_MB(model))
 

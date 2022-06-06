@@ -34,7 +34,8 @@ sh scripts/symmetric_noise/cce_search.sh 1 0.6 0
 ## Training
 ```train
 # RLL
-sh scripts/symmetric_noise/retrain.sh 1 1.0 0 rll darts_rll_seed_1_symmetric_1
+sh scripts/symmetric_noise/retrain.sh 1 1.0 0 darts_rll_seed_1_symmetric_1
+sh scripts/symmetric_noise/retrain.sh 1 1.0 0 resnet18
 ```
 
 ## Evaluation
