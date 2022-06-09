@@ -27,15 +27,21 @@ The log files would be saved under "logs/DATE_SEED_DATASET_LOSS_NOISE_GPU".
 sh scripts/symmetric_noise/rll_search.sh 1 0.6 0
 
 # CCE (script <seed> <noise_level> <gpu>)
-sh scripts/symmetric_noise/cce_search.sh 1 0.6 0
+sh scripts/symmetric_noise/cce_search.sh 1989 1.0 3
 ```
 
 
 ## Training
 ```train
-# RLL
-sh scripts/symmetric_noise/retrain.sh 1 1.0 0 darts_rll_seed_1_symmetric_1
-sh scripts/symmetric_noise/retrain.sh 1 1.0 0 resnet18
+bash scripts/symmetric_noise/retrain.sh 1 1.0 0 resnet18
+
+bash scripts/symmetric_noise/retrain.sh 2019 1.0 0 darts_rll_seed_2019_symmetric_1
+bash scripts/symmetric_noise/retrain.sh 1 1.0 1 darts_rll_seed_1_symmetric_1
+bash scripts/symmetric_noise/retrain.sh 1989 1.0 2 darts_rll_seed_1989_symmetric_1
+
+bash scripts/symmetric_noise/retrain.sh 1 1.0 3 darts_cce_seed_1_symmetric_1
+bash scripts/symmetric_noise/retrain.sh 1989 1.0 0 darts_cce_seed_1989_symmetric_1
+bash scripts/symmetric_noise/retrain.sh 2019 1.0 1 darts_cce_seed_2019_symmetric_1
 ```
 
 ## Evaluation

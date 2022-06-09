@@ -108,6 +108,7 @@ def main():
         model = torch.hub.load('pytorch/vision:v0.10.0', 'resnet18', pretrained=False).cuda()
     else:
         genotype = eval("genotypes.%s" % args.arch)
+        logging.info(f"arch: {genotype}")
         model = Network(args.init_ch, num_classes, args.layers, args.auxiliary, genotype).cuda()
 
     logging.info("param size = %fMB", utils.count_parameters_in_MB(model))
