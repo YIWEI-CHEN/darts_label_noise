@@ -46,17 +46,17 @@ bash scripts/symmetric_noise/retrain.sh 2019 1.0 1 darts_cce_seed_2019_symmetric
 
 ## Evaluation
 ```test
-bash scripts/eval.sh 0 060922_104058_seed-2019_cifar10_darts_rll_seed_2019_symmetric_1_gpu-0609
-bash scripts/eval.sh 1 060922_104203_seed-1_cifar10_darts_rll_seed_1_symmetric_1_gpu-0609
-bash scripts/eval.sh 2 060922_104221_seed-1989_cifar10_darts_rll_seed_1989_symmetric_1_gpu-0609
+bash scripts/symmetric_noise/eval.sh 0 060922_104058_seed-2019_cifar10_darts_rll_seed_2019_symmetric_1_gpu-0609
+bash scripts/symmetric_noise/eval.sh 1 060922_104203_seed-1_cifar10_darts_rll_seed_1_symmetric_1_gpu-0609
+bash scripts/symmetric_noise/eval.sh 2 060922_104221_seed-1989_cifar10_darts_rll_seed_1989_symmetric_1_gpu-0609
 
-bash scripts/eval.sh 0 060622_160654_seed-1989_cifar10_resnet18_rll_symmetric-1.0_gpu-0606
-bash scripts/eval.sh 1 060622_160801_seed-2019_cifar10_resnet18_rll_symmetric-1.0_gpu-0606
-bash scripts/eval.sh 2 061222_235819_seed-1_cifar10_resnet18_rll_symmetric-1.0_gpu-0612
+bash scripts/symmetric_noise/eval.sh 0 060622_160654_seed-1989_cifar10_resnet18_rll_symmetric-1.0_gpu-0606
+bash scripts/symmetric_noise/eval.sh 1 060622_160801_seed-2019_cifar10_resnet18_rll_symmetric-1.0_gpu-0606
+bash scripts/symmetric_noise/eval.sh 2 061222_235819_seed-1_cifar10_resnet18_rll_symmetric-1.0_gpu-0612
 
-bash scripts/eval.sh 0 060922_104426_seed-1_cifar10_darts_cce_seed_1_symmetric_1_gpu-0609
-bash scripts/eval.sh 1 061222_235536_seed-1989_cifar10_darts_cce_seed_1989_symmetric_1_gpu-0612
-bash scripts/eval.sh 2 061222_235640_seed-2019_cifar10_darts_cce_seed_2019_symmetric_1_gpu-0612
+bash scripts/symmetric_noise/eval.sh 0 060922_104426_seed-1_cifar10_darts_cce_seed_1_symmetric_1_gpu-0609
+bash scripts/symmetric_noise/eval.sh 1 061222_235536_seed-1989_cifar10_darts_cce_seed_1989_symmetric_1_gpu-0612
+bash scripts/symmetric_noise/eval.sh 2 061222_235640_seed-2019_cifar10_darts_cce_seed_2019_symmetric_1_gpu-0612
 ```
 
 ## Pre-trained Models
