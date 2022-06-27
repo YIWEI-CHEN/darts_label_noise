@@ -1,54 +1,66 @@
-import  os,sys,glob
-import  numpy as np
-import  torch
-import  utils
-import  logging
-import  argparse
-import  torch.nn as nn
-import  genotypes
-import  torchvision.datasets as dset
-import  torch.backends.cudnn as cudnn
+from datetime import datetime
+import os
+import sys
+import time
 
-from    model import NetworkCIFAR as Network
+import numpy as np
+import torch
+import utils
+import logging
+import argparse
+import torch.nn as nn
+import genotypes
+import torchvision.datasets as dset
+import torch.backends.cudnn as cudnn
+
+from model import NetworkCIFAR as Network
 
 parser = argparse.ArgumentParser("cifar10")
-parser.add_argument('--data', type=str, default='../data', help='location of the data corpus')
-parser.add_argument('--batchsz', type=int, default=36, help='batch size')
+parser.add_argument('--data', type=str, default='cifar10', help='location of the data corpus')
+parser.add_argument('--batchsz', type=int, default=96, help='batch size')
 parser.add_argument('--report_freq', type=float, default=50, help='report frequency')
 parser.add_argument('--gpu', type=int, default=0, help='gpu device id')
 parser.add_argument('--init_ch', type=int, default=36, help='num of init channels')
 parser.add_argument('--layers', type=int, default=20, help='total number of layers')
-parser.add_argument('--exp_path', type=str, default='exp/model.pt', help='path of pretrained model')
+parser.add_argument('--exp_path', type=str, default='exp', help='path of pretrained model')
 parser.add_argument('--auxiliary', action='store_true', default=False, help='use auxiliary tower')
 parser.add_argument('--cutout', action='store_true', default=False, help='use cutout')
 parser.add_argument('--cutout_length', type=int, default=16, help='cutout length')
 parser.add_argument('--drop_path_prob', type=float, default=0.2, help='drop path probability')
-parser.add_argument('--seed', type=int, default=0, help='random seed')
-parser.add_argument('--arch', type=str, default='DARTS', help='which architecture to use')
 args = parser.parse_args()
+
+args.arch = '_'.join(os.path.basename(args.exp_path).split('_')[4:10])
+args.seed = int(os.path.basename(args.exp_path).split('_')[2].split('-')[1])
 
 log_format = '%(asctime)s %(message)s'
 logging.basicConfig(stream=sys.stdout, level=logging.INFO,
                     format=log_format, datefmt='%m/%d %I:%M:%S %p')
+date_format = '%Y-%m-%d_%H-%M-%S'
+timestamp = datetime.now().strftime(date_format)
+fh = logging.FileHandler(os.path.join(args.exp_path, f'eval_log_{timestamp}.txt'))
+fh.setFormatter(logging.Formatter(log_format))
+logging.getLogger().addHandler(fh)
 
+os.environ['CUDA_VISIBLE_DEVICES'] = str(args.gpu)
 
 
 def main():
-
-
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
     cudnn.benchmark = True
     cudnn.enabled = True
+
     logging.info('gpu device = %d' % args.gpu)
     logging.info("args = %s", args)
 
-    # equal to: genotype = genotypes.DARTS_v2
-    genotype = eval("genotypes.%s" % args.arch)
-    print('Load genotype:', genotype)
-    model = Network(args.init_ch, 10, args.layers, args.auxiliary, genotype).cuda()
-    utils.load(model, args.exp_path)
+    if "resnet" in args.arch:
+        model = torch.hub.load('pytorch/vision:v0.10.0', 'resnet18', pretrained=False).cuda()
+    else:
+        genotype = eval("genotypes.%s" % args.arch)
+        logging.info(f'Load genotype: {genotype}')
+        model = Network(args.init_ch, 10, args.layers, args.auxiliary, genotype).cuda()
 
+    utils.load(model, os.path.join(args.exp_path, "trained.pt"))
     logging.info("param size = %fMB", utils.count_parameters_in_MB(model))
 
     criterion = nn.CrossEntropyLoss().cuda()
@@ -64,19 +76,18 @@ def main():
 
 
 def infer(test_queue, model, criterion):
-
     objs = utils.AverageMeter()
     top1 = utils.AverageMeter()
     top5 = utils.AverageMeter()
     model.eval()
 
     with torch.no_grad():
-
         for step, (x, target) in enumerate(test_queue):
-
             x, target = x.cuda(), target.cuda(non_blocking=True)
-
-            logits, _ = model(x)
+            if "resnet" in args.arch:
+                logits = model(x)
+            else:
+                logits, _ = model(x)
             loss = criterion(logits, target)
 
             prec1, prec5 = utils.accuracy(logits, target, topk=(1, 5))
