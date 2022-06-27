@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-PROJECT_ROOT="darts_label_noise/logs/train"
+PROJECT_ROOT="./logs/train"
 GPU=$1
 EXP_PATH=$2
 

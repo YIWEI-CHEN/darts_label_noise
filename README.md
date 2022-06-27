@@ -46,23 +46,28 @@ bash scripts/symmetric_noise/retrain.sh 2019 1.0 1 darts_cce_seed_2019_symmetric
 
 ## Evaluation
 ```test
-bash scripts/symmetric_noise/eval.sh 0 060922_104058_seed-2019_cifar10_darts_rll_seed_2019_symmetric_1_gpu-0609
-bash scripts/symmetric_noise/eval.sh 1 060922_104203_seed-1_cifar10_darts_rll_seed_1_symmetric_1_gpu-0609
-bash scripts/symmetric_noise/eval.sh 2 060922_104221_seed-1989_cifar10_darts_rll_seed_1989_symmetric_1_gpu-0609
+# RLL
+bash scripts/symmetric_noise/eval.sh 0 060922_104203_seed-1_cifar10_darts_rll_seed_1_symmetric_1_gpu-0609
+bash scripts/symmetric_noise/eval.sh 1 060922_104221_seed-1989_cifar10_darts_rll_seed_1989_symmetric_1_gpu-0609
+bash scripts/symmetric_noise/eval.sh 2 060922_104058_seed-2019_cifar10_darts_rll_seed_2019_symmetric_1_gpu-0609
 
-bash scripts/symmetric_noise/eval.sh 0 060622_160654_seed-1989_cifar10_resnet18_rll_symmetric-1.0_gpu-0606
-bash scripts/symmetric_noise/eval.sh 1 060622_160801_seed-2019_cifar10_resnet18_rll_symmetric-1.0_gpu-0606
-bash scripts/symmetric_noise/eval.sh 2 061222_235819_seed-1_cifar10_resnet18_rll_symmetric-1.0_gpu-0612
-
+# CCE
 bash scripts/symmetric_noise/eval.sh 0 060922_104426_seed-1_cifar10_darts_cce_seed_1_symmetric_1_gpu-0609
 bash scripts/symmetric_noise/eval.sh 1 061222_235536_seed-1989_cifar10_darts_cce_seed_1989_symmetric_1_gpu-0612
 bash scripts/symmetric_noise/eval.sh 2 061222_235640_seed-2019_cifar10_darts_cce_seed_2019_symmetric_1_gpu-0612
+
+# ResNet-18
+bash scripts/symmetric_noise/eval.sh 0 061222_235819_seed-1_cifar10_resnet18_rll_symmetric-1.0_gpu-0612
+bash scripts/symmetric_noise/eval.sh 1 060622_160654_seed-1989_cifar10_resnet18_rll_symmetric-1.0_gpu-0606
+bash scripts/symmetric_noise/eval.sh 2 060622_160801_seed-2019_cifar10_resnet18_rll_symmetric-1.0_gpu-0606
 ```
 
-## Pre-trained Models
-
 ## Results
-
+| Symmetric noise | 0.2        | 0.4        | 0.6        | 1.0       |
+|-----------------|------------|------------|------------|-----------|
+| ResNet-18       | 92.05%     | 88.95%     | 82.77%     | 9.65%     |
+| DART-CCE        | **94.91%** | **91.02%** | 83.31%     | **10.0%** |
+| DART-RLL        | 94.66%     | 90.77%     | **86.24%** | **10.0%** |
 
 ## Citation
 If you use any part of this code in your research, please cite our [paper](https://doi.org/10.3389/fdata.2020.00002):
